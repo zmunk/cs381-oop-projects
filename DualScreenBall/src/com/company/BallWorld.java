@@ -17,6 +17,7 @@ public class BallWorld extends JPanel {
     private static final int UPDATE_RATE = 30;    // Frames per second (fps)
     private Ball ball;
     private ContainerBox box;  // The container rectangular box
+    private boolean ballSent;
 
     private DrawCanvas canvas; // Custom canvas for drawing the box/ball
     private int canvasWidth;
@@ -63,15 +64,17 @@ public class BallWorld extends JPanel {
         int x = rand.nextInt(canvasWidth - radius * 2 - 20) + radius + 10;
         int y = rand.nextInt(canvasHeight - radius * 2 - 20) + radius + 10;
 
+
         int speed = 10 + rand.nextInt(10);
         int angleInDegree = rand.nextInt(360);
         ball = new Ball(x, y, radius, speed, angleInDegree);
-        ball.setBallWorld(this);
+        this.addBall(ball);
     }
 
     public void addBall(Ball ball) {
         this.ball = ball;
         this.ball.setBallWorld(this);
+        ballSent = false;
     }
 
 
@@ -98,23 +101,29 @@ public class BallWorld extends JPanel {
     }
 
     public void checkTransfer(float minX, float maxX) {
-        if (ball.x < minX) {
-            if (screen.equals("left")) {
-                ball.speedX = -ball.speedX;
-                ball.x = minX;
-            } else {
-                float angle = (float) (- Math.atan2(ball.speedY, ball.speedX) * 180 / Math.PI);
-                peer.sendObject(new Ball(maxX, ball.y, ball.radius, ball.speed, angle));
+        if (screen.equals("left") && ball.x < minX) {
+            ball.speedX = -ball.speedX;
+            ball.x = minX;
+        } else if (screen.equals("right") && ball.x > maxX) {
+            ball.speedX = -ball.speedX;
+            ball.x = maxX;
+        }
+
+        if (screen.equals("left")) {
+            if (ball.x > maxX + 2 * ball.radius) {
                 ball = null;
+            } else if (!ballSent && ball.x > maxX && ball.speedX > 0) {
+                float angle = (float) (-Math.atan2(ball.speedY, ball.speedX) * 180 / Math.PI);
+                peer.sendObject(new Ball(minX - 2 * ball.radius, ball.y, ball.radius, ball.speed, angle));
+                ballSent = true;
             }
-        } else if (ball.x > maxX) {
-            if (screen.equals("left")) {
-                float angle = (float) (- Math.atan2(ball.speedY, ball.speedX) * 180 / Math.PI);
-                peer.sendObject(new Ball(minX, ball.y, ball.radius, ball.speed, angle));
+        } else if (screen.equals("right")) {
+            if (ball.x < minX - 2 * ball.radius) {
                 ball = null;
-            } else {
-                ball.speedX = -ball.speedX;
-                ball.x = maxX;
+            } else if (!ballSent && ball.x < minX && ball.speedX < 0) {
+                float angle = (float) (-Math.atan2(ball.speedY, ball.speedX) * 180 / Math.PI);
+                peer.sendObject(new Ball(maxX + 2 * ball.radius, ball.y, ball.radius, ball.speed, angle));
+                ballSent = true;
             }
         }
     }
